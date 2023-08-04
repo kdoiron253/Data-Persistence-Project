@@ -1,11 +1,13 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class MainManager : MonoBehaviour
 {
+    public static StartManager Instance;
     public Brick BrickPrefab;
     public int LineCount = 6;
     public Rigidbody Ball;
@@ -13,15 +15,23 @@ public class MainManager : MonoBehaviour
     public Text ScoreText;
     public Text BestScoreText;
     public GameObject GameOverText;
+    public string highName;
+    public string userName;
+    public int highScore;
     
     private bool m_Started = false;
     private int m_Points;
     
     private bool m_GameOver = false;
 
-    
-    // Start is called before the first frame update
-    void Start()
+
+	private void Awake()
+	{
+        LoadHighScore();
+	}
+
+	// Start is called before the first frame update
+	void Start()
     {
         const float step = 0.6f;
         int perLine = Mathf.FloorToInt(4.0f / step);
@@ -67,10 +77,17 @@ public class MainManager : MonoBehaviour
 
     void UpdateBestScore()
     {
-		if (StartManager.Instance != null) {
-			// set user name on screen
-			BestScoreText.text = "Best Score: 0 - Name: " + StartManager.Instance.userName;
+        if (m_Points < highScore) {
+            BestScoreText.text = "Best Score: " + highScore + " - Name: " + highName;
+        } else if (highScore < m_Points) {
+			userName = StartManager.Instance.userName;
+			BestScoreText.text = "Best Score: " + m_Points + " - Name: " + userName;
+		} else {
+			userName = StartManager.Instance.userName;
+			BestScoreText.text = "Best Score: 0 - Name: " + userName;
+
 		}
+
 	}
 
     void AddPoint(int point)
@@ -83,5 +100,46 @@ public class MainManager : MonoBehaviour
     {
         m_GameOver = true;
         GameOverText.SetActive(true);
+
+		UpdateBestScore();
+        SaveHighScore();
+	}
+
+	[System.Serializable]
+    class SaveData
+    {
+        public string highName;
+        public int HighScore;
+    }
+
+    public void SaveHighScore()
+    {
+		SaveData data = new SaveData();
+
+		// check that highscore is correct before commiting
+		if (m_Points > highScore) {
+            data.highName = StartManager.Instance.userName;
+            data.HighScore = m_Points;
+        } else {
+			data.highName = highName;
+			data.HighScore = highScore;
+		}
+
+		string json = JsonUtility.ToJson(data);
+		File.WriteAllText(Application.persistentDataPath + "/savefile.json", json);
+	}
+
+    public void LoadHighScore()
+    {
+        string path = Application.persistentDataPath + "/savefile.json";
+
+        if (File.Exists(path)) {
+            string json = File.ReadAllText(path);
+            SaveData data = JsonUtility.FromJson<SaveData>(json);
+
+            highName = data.highName;
+            highScore = data.HighScore;
+            
+        }
     }
 }
